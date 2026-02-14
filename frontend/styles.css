@@ -1,0 +1,37 @@
+body {
+    font-family: 'Inter', sans-serif;
+}
+
+.btn-primary {
+    background-color: #ff007f;
+    color: #ffffff;
+    padding: 10px 20px;
+    font-size: 1rem;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+
+.btn-primary:hover {
+    background-color: #e60073;
+}
+
+.btn-secondary {
+    background-color: #333333;
+    color: #ffffff;
+    padding: 10px 20px;
+    font-size: 1rem;
+    border-radius: 5px;
+    transition: background-color 0.3s;
+}
+
+.btn-secondary:hover {
+    background-color: #555555;
+}
+
+.text-green-400 {
+    color: #22c55e;
+}
+
+.text-pink-500 {
+    color: #ec4899;
+}

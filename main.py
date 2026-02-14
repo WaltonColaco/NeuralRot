@@ -1,6 +1,8 @@
 import argparse
 import math
 import os
+import subprocess
+import sys
 import time
 
 import cv2
@@ -208,6 +210,46 @@ def train_model(csv_path, model_path, test_size=0.2):
     print(f"Model saved: {model_path}")
 
 
+def run_full_stack(frontend_dir, frontend_port, backend_port, model_path, train_if_missing, csv_path):
+    if not os.path.exists(model_path):
+        if train_if_missing and os.path.exists(csv_path):
+            print("Model missing. Training from existing CSV before starting app...")
+            train_model(csv_path=csv_path, model_path=model_path)
+        elif not os.path.exists(csv_path):
+            print("Model missing and CSV not found. Start app will run, but predictions will fail.")
+            print(f"Missing: {model_path} and {csv_path}")
+        else:
+            print("Model missing. Start app will run, but /predict will return model-not-found.")
+            print("Use --train-if-missing to auto-train from CSV before launching.")
+
+    backend_env = os.environ.copy()
+    backend_env["BACKEND_PORT"] = str(backend_port)
+    backend_env["MODEL_PATH"] = model_path
+
+    backend_cmd = [sys.executable, "backend_api.py"]
+    frontend_cmd = [sys.executable, "-m", "http.server", str(frontend_port)]
+
+    backend_proc = subprocess.Popen(backend_cmd, env=backend_env)
+    frontend_proc = subprocess.Popen(frontend_cmd, cwd=frontend_dir)
+
+    frontend_url = f"http://127.0.0.1:{frontend_port}"
+    print(f"Backend API running on http://127.0.0.1:{backend_port}")
+    print(f"Frontend running on {frontend_url}")
+    print("Press Ctrl+C to stop both servers.")
+
+    try:
+        backend_proc.wait()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        for proc in (backend_proc, frontend_proc):
+            if proc.poll() is None:
+                proc.terminate()
+        for proc in (backend_proc, frontend_proc):
+            if proc.poll() is None:
+                proc.kill()
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Collect gesture CSV and train gesture model.")
     parser.add_argument(
@@ -235,11 +277,57 @@ def parse_args():
         action="store_true",
         help="Skip webcam capture and train from existing CSV",
     )
+    parser.add_argument(
+        "--run-app",
+        action="store_true",
+        help="Run backend API + frontend static server in one command",
+    )
+    parser.add_argument(
+        "--frontend-dir",
+        type=str,
+        default="frontend",
+        help="Frontend directory to serve",
+    )
+    parser.add_argument(
+        "--frontend-port",
+        type=int,
+        default=5500,
+        help="Frontend server port",
+    )
+    parser.add_argument(
+        "--backend-port",
+        type=int,
+        default=8000,
+        help="Backend API port",
+    )
+    parser.add_argument(
+        "--train-if-missing",
+        action="store_true",
+        default=True,
+        help="When --run-app, train model from CSV if model file is missing (default: enabled)",
+    )
+    parser.add_argument(
+        "--no-train-if-missing",
+        action="store_true",
+        help="When --run-app, do not auto-train even if model is missing",
+    )
     return parser.parse_args()
 
 
 def main():
     args = parse_args()
+
+    if args.run_app:
+        run_full_stack(
+            frontend_dir=args.frontend_dir,
+            frontend_port=args.frontend_port,
+            backend_port=args.backend_port,
+            model_path=args.model,
+            train_if_missing=(args.train_if_missing and not args.no_train_if_missing),
+            csv_path=args.csv,
+        )
+        return
+
     labels = [x.strip() for x in args.labels.split(",") if x.strip()]
 
     if not args.skip_collect:
