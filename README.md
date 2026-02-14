@@ -1,2 +1,2 @@
 # NeuralRizzlers
-Wanna rizz some chicks up, clone and use us
+Wanna rizz some chicks up, clone and use us.
