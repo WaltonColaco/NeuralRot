@@ -41,8 +41,12 @@ async function detectGestures() {
         gestureOutput.textContent = randomGesture;
 
         // Add animation to gesture output
-        gestureOutput.classList.add('animate-pulse');
-        setTimeout(() => gestureOutput.classList.remove('animate-pulse'), 500);
+        gestureOutput.classList.add('animate-bounce');
+        setTimeout(() => gestureOutput.classList.remove('animate-bounce'), 500);
+
+        // Add a glowing effect to the detected gesture
+        gestureOutput.style.textShadow = '0 0 10px #f6e05e, 0 0 20px #f6e05e';
+        setTimeout(() => gestureOutput.style.textShadow = '', 1000);
 
         // Continue detecting gestures
         detectGestures();
