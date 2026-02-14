@@ -5,6 +5,7 @@ const video = document.getElementById('webcam');
 const canvas = document.getElementById('overlay');
 const ctx = canvas.getContext('2d');
 const gestureOutput = document.getElementById('gesture');
+const confidenceOutput = document.getElementById('confidence');
 const startButton = document.getElementById('start-button');
 const stopButton = document.getElementById('stop-button');
 
@@ -34,6 +35,7 @@ function stopWebcam() {
         isRunning = false;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         gestureOutput.textContent = 'None';
+        confidenceOutput.textContent = '-';
     }
 }
 
@@ -60,6 +62,9 @@ async function detectGestures() {
         } else {
             const data = await res.json();
             gestureOutput.textContent = data.label || 'Unknown';
+            confidenceOutput.textContent = data.confidence != null
+                ? (data.confidence * 100).toFixed(1) + '%'
+                : '-';
 
             gestureOutput.classList.add('animate-bounce');
             setTimeout(() => gestureOutput.classList.remove('animate-bounce'), 500);

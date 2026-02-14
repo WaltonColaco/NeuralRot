@@ -1,5 +1,4 @@
 import argparse
-import math
 
 import joblib
 import numpy as np
@@ -10,50 +9,10 @@ from sklearn.model_selection import train_test_split
 import cv2
 import mediapipe as mp
 
+from features import extract_features
+
 CSV_PATH = "gesture_data.csv"
 MODEL_PATH = "gesture_model.pkl"
-
-
-def append_landmarks(features, landmarks, anchor, scale, expected_count, use_visibility=False):
-    if landmarks:
-        for lm in landmarks.landmark:
-            features.extend([
-                (lm.x - anchor[0]) / scale,
-                (lm.y - anchor[1]) / scale,
-                (lm.z - anchor[2]) / scale,
-            ])
-            if use_visibility:
-                features.append(lm.visibility)
-    else:
-        values_per_point = 4 if use_visibility else 3
-        features.extend([0.0] * (expected_count * values_per_point))
-
-
-def extract_features(pose_landmarks, left_hand_landmarks, right_hand_landmarks):
-    if not pose_landmarks:
-        return None
-
-    left_shoulder = pose_landmarks.landmark[11]
-    right_shoulder = pose_landmarks.landmark[12]
-
-    anchor = (
-        (left_shoulder.x + right_shoulder.x) / 2.0,
-        (left_shoulder.y + right_shoulder.y) / 2.0,
-        (left_shoulder.z + right_shoulder.z) / 2.0,
-    )
-
-    shoulder_dist = math.sqrt(
-        (left_shoulder.x - right_shoulder.x) ** 2
-        + (left_shoulder.y - right_shoulder.y) ** 2
-        + (left_shoulder.z - right_shoulder.z) ** 2
-    )
-    scale = max(shoulder_dist, 1e-6)
-
-    features = []
-    append_landmarks(features, pose_landmarks, anchor, scale, expected_count=33, use_visibility=True)
-    append_landmarks(features, left_hand_landmarks, anchor, scale, expected_count=21)
-    append_landmarks(features, right_hand_landmarks, anchor, scale, expected_count=21)
-    return features
 
 
 def augment_samples(
@@ -106,64 +65,11 @@ def parse_args():
     parser.add_argument("--feature-dropout", type=float, default=0.0, help="Probability of zeroing features")
     parser.add_argument("--estimators", type=int, default=300, help="Number of trees")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
+    parser.add_argument("--live", action="store_true", help="Launch real-time classification after training")
     return parser.parse_args()
 
 
-def main():
-    args = parse_args()
-
-    df = pd.read_csv(args.csv)
-    if df.empty:
-        raise ValueError("CSV is empty. Collect data first.")
-
-    X = df.iloc[:, 1:]
-    y = df.iloc[:, 0]
-
-    if y.nunique() < 2:
-        raise ValueError("Need at least 2 gesture labels to train.")
-
-    X_aug, y_aug = augment_samples(
-        X,
-        y,
-        factor=args.augment_factor,
-        jitter_std=args.jitter_std,
-        scale_jitter=args.scale_jitter,
-        translate_std=args.translate_std,
-        feature_dropout=args.feature_dropout,
-        random_state=args.seed,
-    )
-
-    class_counts = y_aug.value_counts()
-    use_stratify = class_counts.min() >= 2
-
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_aug,
-        y_aug,
-        test_size=args.test_size,
-        random_state=args.seed,
-        stratify=y_aug if use_stratify else None,
-    )
-
-    model = RandomForestClassifier(
-        n_estimators=args.estimators,
-        max_depth=None,
-        random_state=args.seed,
-        class_weight="balanced_subsample",
-    )
-
-    model.fit(X_train, y_train)
-    preds = model.predict(X_test)
-    acc = accuracy_score(y_test, preds)
-
-    print(f"Original rows: {len(X)}")
-    print(f"Rows after augmentation: {len(X_aug)}")
-    print(f"Classes: {sorted(y_aug.unique())}")
-    print(f"Accuracy: {acc:.4f}")
-
-    joblib.dump(model, args.model)
-    print(f"Model saved: {args.model}")
-
-    # Real-time classification
+def run_live(model):
     mp_pose = mp.solutions.pose
     mp_hands = mp.solutions.hands
     mp_draw = mp.solutions.drawing_utils
@@ -235,6 +141,64 @@ def main():
     cv2.destroyAllWindows()
     pose.close()
     hands.close()
+
+
+def main():
+    args = parse_args()
+
+    df = pd.read_csv(args.csv)
+    if df.empty:
+        raise ValueError("CSV is empty. Collect data first.")
+
+    X = df.iloc[:, 1:]
+    y = df.iloc[:, 0]
+
+    if y.nunique() < 2:
+        raise ValueError("Need at least 2 gesture labels to train.")
+
+    X_aug, y_aug = augment_samples(
+        X,
+        y,
+        factor=args.augment_factor,
+        jitter_std=args.jitter_std,
+        scale_jitter=args.scale_jitter,
+        translate_std=args.translate_std,
+        feature_dropout=args.feature_dropout,
+        random_state=args.seed,
+    )
+
+    class_counts = y_aug.value_counts()
+    use_stratify = class_counts.min() >= 2
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X_aug,
+        y_aug,
+        test_size=args.test_size,
+        random_state=args.seed,
+        stratify=y_aug if use_stratify else None,
+    )
+
+    model = RandomForestClassifier(
+        n_estimators=args.estimators,
+        max_depth=None,
+        random_state=args.seed,
+        class_weight="balanced_subsample",
+    )
+
+    model.fit(X_train, y_train)
+    preds = model.predict(X_test)
+    acc = accuracy_score(y_test, preds)
+
+    print(f"Original rows: {len(X)}")
+    print(f"Rows after augmentation: {len(X_aug)}")
+    print(f"Classes: {sorted(y_aug.unique())}")
+    print(f"Accuracy: {acc:.4f}")
+
+    joblib.dump(model, args.model)
+    print(f"Model saved: {args.model}")
+
+    if args.live:
+        run_live(model)
 
 
 if __name__ == "__main__":
