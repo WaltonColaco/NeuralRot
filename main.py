@@ -14,7 +14,8 @@ from sklearn.model_selection import train_test_split
 CSV_PATH = "gesture_data.csv"
 MODEL_PATH = "gesture_model.pkl"
 
-mp_holistic = mp.solutions.holistic
+mp_pose = mp.solutions.pose
+mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
 
 
@@ -33,10 +34,8 @@ def append_landmarks(features, landmarks, anchor, scale, expected_count, use_vis
         features.extend([0.0] * (expected_count * values_per_point))
 
 
-def extract_features(results):
-    pose = results.pose_landmarks
-    left_hand = results.left_hand_landmarks
-    right_hand = results.right_hand_landmarks
+def extract_features(pose_landmarks, left_hand_landmarks, right_hand_landmarks):
+    pose = pose_landmarks
 
     if not pose:
         return None
@@ -59,25 +58,30 @@ def extract_features(results):
 
     features = []
     append_landmarks(features, pose, anchor, scale, expected_count=33, use_visibility=True)
-    append_landmarks(features, left_hand, anchor, scale, expected_count=21)
-    append_landmarks(features, right_hand, anchor, scale, expected_count=21)
+    append_landmarks(features, left_hand_landmarks, anchor, scale, expected_count=21)
+    append_landmarks(features, right_hand_landmarks, anchor, scale, expected_count=21)
     return features
 
 
 def collect_data(labels, samples_per_label, capture_interval, csv_path):
-    holistic = mp_holistic.Holistic(
+    pose = mp_pose.Pose(
         static_image_mode=False,
         model_complexity=1,
         smooth_landmarks=True,
-        enable_segmentation=False,
-        refine_face_landmarks=False,
+        min_detection_confidence=0.7,
+        min_tracking_confidence=0.5,
+    )
+    hands = mp_hands.Hands(
+        static_image_mode=False,
+        max_num_hands=2,
         min_detection_confidence=0.7,
         min_tracking_confidence=0.5,
     )
 
     cap = cv2.VideoCapture(0)
     if not cap.isOpened():
-        holistic.close()
+        pose.close()
+        hands.close()
         raise RuntimeError("Could not open webcam.")
 
     print("Press [Q] to stop early.")
@@ -95,17 +99,31 @@ def collect_data(labels, samples_per_label, capture_interval, csv_path):
                     continue
 
                 rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                results = holistic.process(rgb)
-                features = extract_features(results)
+                pose_results = pose.process(rgb)
+                hand_results = hands.process(rgb)
 
-                if results.pose_landmarks:
-                    mp_draw.draw_landmarks(frame, results.pose_landmarks, mp_holistic.POSE_CONNECTIONS)
-                if results.left_hand_landmarks:
-                    mp_draw.draw_landmarks(frame, results.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
-                if results.right_hand_landmarks:
-                    mp_draw.draw_landmarks(frame, results.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS)
-                if results.face_landmarks:
-                    mp_draw.draw_landmarks(frame, results.face_landmarks, mp_holistic.FACEMESH_CONTOURS)
+                left_hand_landmarks = None
+                right_hand_landmarks = None
+                if hand_results.multi_hand_landmarks and hand_results.multi_handedness:
+                    for hand_lm, handedness in zip(hand_results.multi_hand_landmarks, hand_results.multi_handedness):
+                        side = handedness.classification[0].label
+                        if side == "Left":
+                            left_hand_landmarks = hand_lm
+                        elif side == "Right":
+                            right_hand_landmarks = hand_lm
+
+                features = extract_features(
+                    pose_results.pose_landmarks,
+                    left_hand_landmarks,
+                    right_hand_landmarks,
+                )
+
+                if pose_results.pose_landmarks:
+                    mp_draw.draw_landmarks(frame, pose_results.pose_landmarks, mp_pose.POSE_CONNECTIONS)
+                if left_hand_landmarks:
+                    mp_draw.draw_landmarks(frame, left_hand_landmarks, mp_hands.HAND_CONNECTIONS)
+                if right_hand_landmarks:
+                    mp_draw.draw_landmarks(frame, right_hand_landmarks, mp_hands.HAND_CONNECTIONS)
 
                 now = time.time()
                 if features is not None and (now - last_capture) >= capture_interval:
@@ -140,7 +158,8 @@ def collect_data(labels, samples_per_label, capture_interval, csv_path):
     finally:
         cap.release()
         cv2.destroyAllWindows()
-        holistic.close()
+        pose.close()
+        hands.close()
 
     return write_csv(all_rows, csv_path)
 
