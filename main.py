@@ -249,7 +249,24 @@ def run_full_stack(frontend_dir, frontend_port, backend_port, model_path):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Collect gesture CSV and train gesture model.")
+    parser = argparse.ArgumentParser(
+        description="NeuralRot pipeline runner.",
+        epilog=(
+            "Examples:\n"
+            "  python main.py collect --labels dab,neutral --samples-per-label 100\n"
+            "  python main.py train\n"
+            "  python main.py all --labels dab,neutral\n"
+            "  python main.py app"
+        ),
+        formatter_class=argparse.RawTextHelpFormatter,
+    )
+    parser.add_argument(
+        "command",
+        nargs="?",
+        default="all",
+        choices=["all", "collect", "train", "app"],
+        help="all=collect+train, collect=data only, train=train only, app=run frontend+backend",
+    )
     parser.add_argument(
         "--labels",
         type=str,
@@ -271,14 +288,9 @@ def parse_args():
     parser.add_argument("--csv", type=str, default=CSV_PATH, help="Dataset CSV path")
     parser.add_argument("--model", type=str, default=MODEL_PATH, help="Model output path")
     parser.add_argument(
-        "--skip-collect",
-        action="store_true",
-        help="Skip webcam capture and train from existing CSV",
-    )
-    parser.add_argument(
         "--run-app",
         action="store_true",
-        help="Run backend API + frontend static server in one command",
+        help="Deprecated; use `python main.py app`",
     )
     parser.add_argument(
         "--frontend-dir",
@@ -304,7 +316,9 @@ def parse_args():
 def main():
     args = parse_args()
 
-    if args.run_app:
+    command = "app" if args.run_app else args.command
+
+    if command == "app":
         run_full_stack(
             frontend_dir=args.frontend_dir,
             frontend_port=args.frontend_port,
@@ -315,7 +329,7 @@ def main():
 
     labels = [x.strip() for x in args.labels.split(",") if x.strip()]
 
-    if not args.skip_collect:
+    if command in ("all", "collect"):
         collect_data(
             labels=labels,
             samples_per_label=args.samples_per_label,
@@ -323,7 +337,8 @@ def main():
             csv_path=args.csv,
         )
 
-    train_model(csv_path=args.csv, model_path=args.model)
+    if command in ("all", "train"):
+        train_model(csv_path=args.csv, model_path=args.model)
 
 
 if __name__ == "__main__":

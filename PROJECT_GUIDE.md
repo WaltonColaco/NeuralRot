@@ -59,14 +59,14 @@ Backend health:
 
 ### 2) Collect data + train model
 ```powershell
-python main.py --labels dab,neutral --samples-per-label 100
+python main.py all --labels dab,neutral --samples-per-label 100
 ```
 
 This records samples and trains `gesture_model.pkl`.
 
 ### 3) Train only from existing CSV
 ```powershell
-python main.py --skip-collect
+python main.py train
 ```
 
 or with augmentation options:
@@ -80,6 +80,14 @@ python meme_engine.py
 ```
 
 ---
+
+## Intuitive Commands
+```powershell
+python main.py collect --labels dab,neutral --samples-per-label 100
+python main.py train
+python main.py all --labels dab,neutral
+python main.py app
+```
 
 ## End-to-End Flow
 1. Frontend captures webcam frame.
@@ -100,7 +108,7 @@ python meme_engine.py
 ### No predictions / model not found
 - Train first:
 ```powershell
-python main.py --skip-collect
+python main.py train
 ```
 - Confirm `gesture_model.pkl` exists in project root.
 
