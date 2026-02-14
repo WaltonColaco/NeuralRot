@@ -1,2 +1,2 @@
-# NeuralRizzlers
-Wanna rizz some chicks up, clone and use us.
+# NeuralRot
+Join us in classifying brainrot.
