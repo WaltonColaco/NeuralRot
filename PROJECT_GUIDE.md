@@ -1,5 +1,13 @@
 # NeuralRot Guide
 
+## Walton's guide
+```
+To train: 
+python main.py all --labels dab,neutral,thumbs_up,six_seven,peace,ok,middle_finger --samples-per-label 100
+
+To run:
+python main.py app
+```
 ## What This Project Does
 NeuralRot classifies body gestures from webcam video and shows predictions in a frontend UI.
 
