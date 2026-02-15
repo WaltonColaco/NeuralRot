@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeuralRot - Brain Rot Classifier</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shadcn-ui/dist/shadcn.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body class="bg-gradient-to-r from-purple-800 via-pink-600 to-red-500 text-white">
+    <div class="container mx-auto p-4">
+        <header class="text-center mb-8">
+            <h1 class="text-6xl font-extrabold text-white drop-shadow-lg">NeuralRot</h1>
+            <p class="text-xl text-gray-200 mt-4">Unleash the power of brain rot memes with your gestures!</p>
+        </header>
+
+        <main class="flex flex-col items-center">
+            <div class="relative w-full max-w-3xl aspect-video border-8 border-white rounded-xl overflow-hidden shadow-2xl">
+                <video id="webcam" autoplay class="absolute w-full h-full object-cover"></video>
+                <canvas id="overlay" class="absolute w-full h-full"></canvas>
+            </div>
+
+            <div class="btn-container">
+                <button id="start-button" class="btn btn-primary flex items-center space-x-2">
+                    <i class="fas fa-play"></i>
+                    <span>Start</span>
+                </button>
+                <button id="stop-button" class="btn btn-secondary flex items-center space-x-2">
+                    <i class="fas fa-stop"></i>
+                    <span>Stop</span>
+                </button>
+            </div>
+
+            <div class="mt-6 text-center">
+                <p id="gesture-output">Detected Gesture: <span id="gesture">None</span></p>
+                <p id="confidence-output">Confidence: <span id="confidence">-</span></p>
+            </div>
+        </main>
+
+        <footer class="mt-12 text-center text-gray-300">
+            <p>Project: <span class="text-yellow-400 font-bold">NeuralRot</span> | Created by: <span class="text-yellow-400 font-bold">Neural Ninjas</span></p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
