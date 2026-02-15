@@ -61,7 +61,7 @@ async function detectGestures() {
             gestureOutput.textContent = 'Backend error';
         } else {
             const data = await res.json();
-            gestureOutput.textContent = data.label || 'Unknown';
+            gestureOutput.textContent = (data.label || 'Unknown').replaceAll('_', ' ');
             confidenceOutput.textContent = data.confidence != null
                 ? (data.confidence * 100).toFixed(1) + '%'
                 : '-';
